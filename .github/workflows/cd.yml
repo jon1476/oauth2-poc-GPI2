@@ -1,4 +1,4 @@
-name: CD Pipeline
+name: Pipeline de CD
 
 on:
   push:
@@ -6,85 +6,75 @@ on:
   workflow_dispatch:
 
 jobs:
-  cd:
+  despliegue:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Start timer
+      - name: Iniciar temporizador
         run: echo "START=$(date +%s)" >> $GITHUB_ENV
 
-      - name: Checkout repo
+      - name: Descargar repositorio
         uses: actions/checkout@v4
 
-
-      #   BACKEND 1: AUTH SERVER
-
-      - name: Setup Java 17
+      - name: Configurar Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
-      - name: Build authorization-server
+      - name: Compilar servidor de autorización
         working-directory: authorization-server
         run: |
           chmod +x mvnw
           ./mvnw -DskipTests package
 
-      - name: Upload authorization-server artifact
+      - name: Subir artefacto servidor de autorización
         uses: actions/upload-artifact@v4
         with:
           name: authorization-server
           path: authorization-server/target/*.jar
 
-
-      #   BACKEND 2: RESOURCE SERVER
-
-      - name: Build resource-server
+      - name: Compilar servidor de recursos
         working-directory: resource-server
         run: |
           chmod +x mvnw
           ./mvnw -DskipTests package
 
-      - name: Upload resource-server artifact
+      - name: Subir artefacto servidor de recursos
         uses: actions/upload-artifact@v4
         with:
           name: resource-server
           path: resource-server/target/*.jar
 
-      #   FRONTEND ANGULAR
-
-      - name: Setup Node 18
+      - name: Configurar Node 18
         uses: actions/setup-node@v4
         with:
           node-version: "18"
 
-      - name: Install dependencies
+      - name: Instalar dependencias del frontend
         working-directory: ag-prueba-front
         run: npm ci
 
-      - name: Build frontend
+      - name: Compilar frontend Angular
         working-directory: ag-prueba-front
         run: npm run build
 
-      - name: Upload frontend dist
+      - name: Subir artefacto del frontend
         uses: actions/upload-artifact@v4
         with:
           name: ag-prueba-front-dist
           path: ag-prueba-front/dist/
 
-      #   TIME MEASUREMENT
-
-      - name: End timer
+      - name: Finalizar temporizador
         run: echo "END=$(date +%s)" >> $GITHUB_ENV
 
-      - name: Calculate duration
+      - name: Calcular duración
         run: |
           SECONDS=$((END-START))
-          echo "Deployment duration: ${SECONDS} seconds"
+          echo "Duración del despliegue: ${SECONDS} segundos"
           echo "DEPLOY_DURATION=${SECONDS}" >> $GITHUB_ENV
 
-      - name: Add summary
+      - name: Añadir resumen
         run: |
-          echo "### CD Pipeline" >> $GITHUB_STEP_SUMMARY
-          echo "Deployment time: ${DEPLOY_DURATION} seconds" >> $GITHUB_STEP_SUMMARY
+          echo "### Pipeline de CD" >> $GITHUB_STEP_SUMMARY
+          echo "Tiempo de despliegue: ${DEPLOY_DURATION} segundos" >> $GITHUB_STEP_SUMMARY
