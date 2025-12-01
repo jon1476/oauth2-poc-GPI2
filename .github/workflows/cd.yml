@@ -1,0 +1,90 @@
+name: CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  cd:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Start timer
+        run: echo "START=$(date +%s)" >> $GITHUB_ENV
+
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+
+      #   BACKEND 1: AUTH SERVER
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Build authorization-server
+        working-directory: authorization-server
+        run: |
+          chmod +x mvnw
+          ./mvnw -DskipTests package
+
+      - name: Upload authorization-server artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: authorization-server
+          path: authorization-server/target/*.jar
+
+
+      #   BACKEND 2: RESOURCE SERVER
+
+      - name: Build resource-server
+        working-directory: resource-server
+        run: |
+          chmod +x mvnw
+          ./mvnw -DskipTests package
+
+      - name: Upload resource-server artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: resource-server
+          path: resource-server/target/*.jar
+
+      #   FRONTEND ANGULAR
+
+      - name: Setup Node 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Install dependencies
+        working-directory: ag-prueba-front
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: ag-prueba-front
+        run: npm run build
+
+      - name: Upload frontend dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: ag-prueba-front-dist
+          path: ag-prueba-front/dist/
+
+      #   TIME MEASUREMENT
+
+      - name: End timer
+        run: echo "END=$(date +%s)" >> $GITHUB_ENV
+
+      - name: Calculate duration
+        run: |
+          SECONDS=$((END-START))
+          echo "Deployment duration: ${SECONDS} seconds"
+          echo "DEPLOY_DURATION=${SECONDS}" >> $GITHUB_ENV
+
+      - name: Add summary
+        run: |
+          echo "### CD Pipeline" >> $GITHUB_STEP_SUMMARY
+          echo "Deployment time: ${DEPLOY_DURATION} seconds" >> $GITHUB_STEP_SUMMARY
