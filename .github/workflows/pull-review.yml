@@ -1,42 +1,46 @@
-name: Control de Pull Reviews
+name: Aviso PR (Queda 1 hora)
 
 on:
   schedule:
-    - cron: '0 * * * *' # Se ejecuta cada hora
+    - cron: "*/10 * * * *"   # Cada 10 minutos
   workflow_dispatch:
 
 jobs:
-  revisar-prs:
+  avisos:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Revisar PR abiertos
+      - name: Obtener PR abiertas
+        id: prs
         uses: actions/github-script@v7
         with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            const h = 2; // horas límite
-            const prs = await github.rest.pulls.list({
+            const { data: prs } = await github.rest.pulls.list({
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: "open"
             });
+            return prs;
 
-            const now = new Date();
+      - name: Revisar tiempos y avisar
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prs = ${{ steps.prs.outputs.result }};
+            const ahora = new Date();
 
-            for (const pr of prs.data) {
-              const created = new Date(pr.created_at);
-              const diffHrs = (now - created) / 1000 / 3600;
-              
-              if (diffHrs >= h - 1) { 
+            for (const pr of prs) {
+              const creada = new Date(pr.created_at);
+              const diffHoras = (ahora - creada) / 1000 / 3600;
+
+              // h = 2 → avisar cuando diff ∈ [1, 2)
+              if (diffHoras >= 1 && diffHoras < 2) {
                 await github.rest.issues.createComment({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   issue_number: pr.number,
-                  body: `⚠️ Este PR lleva abierto ${diffHrs.toFixed(1)}h. Se acerca al límite de ${h}h para review.`
+                  body: `⚠️ **Aviso automático:**  
+Queda **1 hora** para que esta Pull Request llegue al límite de revisión de **2 horas**.`
                 });
               }
             }
