@@ -27,13 +27,13 @@ jobs:
             for (const pr of prs) {
               const created = new Date(pr.created_at);
               const diffHrs = (now - created) / 1000 / 3600;
-              
-              if (diffHrs >= h - 1 && diffHrs < h) { 
+
+              if (diffHrs >= h - 1 && diffHrs < h) {
                 await github.rest.issues.createComment({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   issue_number: pr.number,
-                  body: `Este Pull Request lleva abierto **${diffHrs.toFixed(1)}h**.  
+                  body: `⚠️ Este Pull Request lleva abierto **${diffHrs.toFixed(1)}h**.
 Se acerca al límite de **${h}h** para ser revisado.`
                 });
               }
