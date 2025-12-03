@@ -2,7 +2,7 @@ name: Control de Pull Reviews
 
 on:
   schedule:
-    - cron: '0 * * * *'  # Se ejecuta cada hora
+    - cron: '0 * * * *' # Se ejecuta cada hora
   workflow_dispatch:
 
 jobs:
@@ -28,7 +28,8 @@ jobs:
               const created = new Date(pr.created_at);
               const diffHrs = (now - created) / 1000 / 3600;
 
-              if (diffHrs >= h - 1 && diffHrs < h) {
+              // Condición: Si está entre 1 y 2 horas de antigüedad
+              if (diffHrs >= h - 1 && diffHrs < h) { 
                 await github.rest.issues.createComment({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
