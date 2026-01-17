@@ -2,12 +2,19 @@ name: Pipeline de CD
 
 on:
   push:
-    branches: [ "develop" ]
+    branches: ["develop"]
   workflow_dispatch:
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
 jobs:
-  despliegue:
+  build-and-push:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
     steps:
       - name: Iniciar temporizador
@@ -16,54 +23,50 @@ jobs:
       - name: Descargar repositorio
         uses: actions/checkout@v4
 
-      - name: Configurar Java 17
-        uses: actions/setup-java@v4
+      # ============ SERVIDOR DE AUTORIZACIÓN ============
+      - name: Construir imagen Docker del servidor de autorización
+        uses: docker/build-push-action@v5
         with:
-          distribution: temurin
-          java-version: "17"
+          context: ./authorization-server
+          push: false
+          tags: ${{ env.REGISTRY }}/oauth2-authorization-server:${{ github.sha }}
+          outputs: type=docker,dest=/tmp/auth-server.tar
 
-      - name: Compilar servidor de autorización
-        working-directory: authorization-server
-        run: |
-          chmod +x mvnw
-          ./mvnw -DskipTests package
-
-      - name: Subir artefacto servidor de autorización
-        uses: actions/upload-artifact@v4
+      - name: Iniciar sesión en el registro de contenedores
+        uses: docker/login-action@v3
         with:
-          name: authorization-server
-          path: authorization-server/target/*.jar
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Compilar servidor de recursos
-        working-directory: resource-server
-        run: |
-          chmod +x mvnw
-          ./mvnw -DskipTests package
-
-      - name: Subir artefacto servidor de recursos
-        uses: actions/upload-artifact@v4
+      - name: Subir imagen del servidor de autorización
+        uses: docker/build-push-action@v5
         with:
-          name: resource-server
-          path: resource-server/target/*.jar
+          context: ./authorization-server
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/oauth2-authorization-server:${{ github.sha }}
+            ${{ env.REGISTRY }}/oauth2-authorization-server:latest
 
-      - name: Configurar Node 18
-        uses: actions/setup-node@v4
+      # ============ SERVIDOR DE RECURSOS ============
+      - name: Subir imagen del servidor de recursos
+        uses: docker/build-push-action@v5
         with:
-          node-version: "18"
+          context: ./resource-server
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/oauth2-resource-server:${{ github.sha }}
+            ${{ env.REGISTRY }}/oauth2-resource-server:latest
 
-      - name: Instalar dependencias del frontend
-        working-directory: ag-prueba-front
-        run: npm ci
-
-      - name: Compilar frontend Angular
-        working-directory: ag-prueba-front
-        run: npm run build
-
-      - name: Subir artefacto del frontend
-        uses: actions/upload-artifact@v4
+      # ============ FRONTEND ============
+      - name: Subir imagen del frontend
+        uses: docker/build-push-action@v5
         with:
-          name: ag-prueba-front-dist
-          path: ag-prueba-front/dist/
+          context: ./ag-prueba-front
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/oauth2-frontend:${{ github.sha }}
+            ${{ env.REGISTRY }}/oauth2-frontend:latest
 
       - name: Finalizar temporizador
         run: echo "END=$(date +%s)" >> $GITHUB_ENV
@@ -71,10 +74,14 @@ jobs:
       - name: Calcular duración
         run: |
           SECONDS=$((END-START))
-          echo "Duración del despliegue: ${SECONDS} segundos"
+          echo "Duración del pipeline: ${SECONDS} segundos"
           echo "DEPLOY_DURATION=${SECONDS}" >> $GITHUB_ENV
 
-      - name: Añadir resumen
+      - name: Resumen del Pipeline
         run: |
-          echo "### Pipeline de CD" >> $GITHUB_STEP_SUMMARY
-          echo "Tiempo de despliegue: ${DEPLOY_DURATION} segundos" >> $GITHUB_STEP_SUMMARY
+          echo "### Pipeline de CD ✅" >> $GITHUB_STEP_SUMMARY
+          echo "**Imágenes Docker generadas:**" >> $GITHUB_STEP_SUMMARY
+          echo "- oauth2-authorization-server:${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- oauth2-resource-server:${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- oauth2-frontend:${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Tiempo total:** ${DEPLOY_DURATION} segundos" >> $GITHUB_STEP_SUMMARY
