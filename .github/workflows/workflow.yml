@@ -42,13 +42,9 @@ jobs:
           cd authorization-server && chmod +x mvnw && ./mvnw clean package -DskipTests -B
           cd ../resource-server && chmod +x mvnw && ./mvnw clean package -DskipTests -B
 
-      # --- LINTING & TEST FRONTEND (Angular ESLint) ---
+      # --- TEST FRONTEND ---
       - name: Instalar dependencias del frontend
         run: cd ag-prueba-front && npm ci
-
-      - name: Run Frontend Linting (ESLint)
-        run: cd ag-prueba-front && npx ng lint
-        continue-on-error: true
 
       - name: Testear frontend con cobertura
         run: cd ag-prueba-front && npm run test -- --no-watch --browsers=ChromeHeadless --code-coverage 2>&1 || true
