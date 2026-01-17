@@ -32,11 +32,11 @@ jobs:
 
       # --- COMPILAR Y TESTEAR BACKEND ---
       - name: Compilar y testear servidor de autorización
-        run: cd authorization-server && ./mvnw clean verify -B
+        run: cd authorization-server && chmod +x mvnw && ./mvnw clean verify -B
         continue-on-error: true
 
       - name: Compilar y testear servidor de recursos
-        run: cd resource-server && ./mvnw clean verify -B
+        run: cd resource-server && chmod +x mvnw && ./mvnw clean verify -B
         continue-on-error: true
 
       # --- COMPILAR Y TESTEAR FRONTEND ---
