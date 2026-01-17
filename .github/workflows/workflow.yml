@@ -54,7 +54,7 @@ jobs:
         run: |
           cd authorization-server
           chmod +x mvnw
-          ./mvnw sonar:sonar \
+          ./mvnw org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -Dsonar.projectKey=jon1476_oauth2-poc-GPI2 \
             -Dsonar.organization=jon1476 \
             -Dsonar.host.url=https://sonarcloud.io \

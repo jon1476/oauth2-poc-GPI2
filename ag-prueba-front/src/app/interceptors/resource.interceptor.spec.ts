@@ -5,8 +5,15 @@ import { ResourceInterceptor } from './resource.interceptor';
 import { TokenService } from '../services/token.service';
 
 describe('ResourceInterceptor', () => {
+  let interceptor: ResourceInterceptor;
+  let tokenService: TokenService;
+
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    TestBed.configureTestingModule({
+      providers: [ResourceInterceptor, TokenService],
+    });
+    interceptor = TestBed.inject(ResourceInterceptor);
+    tokenService = TestBed.inject(TokenService);
   });
 
   it('should be created', () => {
