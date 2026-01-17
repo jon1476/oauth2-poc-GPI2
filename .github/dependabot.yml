@@ -1,0 +1,30 @@
+version: 2
+updates:
+  - package-ecosystem: "maven"
+    directory: "/authorization-server"
+    schedule:
+      interval: "weekly"
+      day: "monday" # Los lunes revisa vulnerabilidades
+    open-pull-requests-limit: 5
+    labels:
+      - "security"
+      - "backend"
+
+  - package-ecosystem: "maven"
+    directory: "/resource-server"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "security"
+      - "backend"
+
+  - package-ecosystem: "npm"
+    directory: "/ag-prueba-front"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "security"
+      - "frontend"
