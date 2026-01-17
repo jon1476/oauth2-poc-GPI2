@@ -32,15 +32,15 @@ jobs:
       # --- LINTING BACKEND (Java Checkstyle) ---
       - name: Run Java Linting (Checkstyle)
         run: |
-          cd authorization-server && ./mvnw checkstyle:check -B
-          cd ../resource-server && ./mvnw checkstyle:check -B
+          cd authorization-server && chmod +x mvnw && ./mvnw checkstyle:check -B
+          cd ../resource-server && chmod +x mvnw && ./mvnw checkstyle:check -B
         continue-on-error: true
 
       # --- COMPILAR BACKEND ---
       - name: Compilar servidores
         run: |
-          cd authorization-server && ./mvnw clean package -DskipTests -B
-          cd ../resource-server && ./mvnw clean package -DskipTests -B
+          cd authorization-server && chmod +x mvnw && ./mvnw clean package -DskipTests -B
+          cd ../resource-server && chmod +x mvnw && ./mvnw clean package -DskipTests -B
 
       # --- LINTING & TEST FRONTEND (Angular ESLint) ---
       - name: Instalar dependencias del frontend
