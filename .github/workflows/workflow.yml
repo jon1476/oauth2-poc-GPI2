@@ -72,4 +72,4 @@ jobs:
     environment: Production
     steps:
       - name: Desplegar versión ${{ github.sha }}
-        run: echo "🚀 Desplegando versión ${{ github.sha }} en producción..."
+        run: echo "Desplegando versión ${{ github.sha }} en producción..."
