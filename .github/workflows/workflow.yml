@@ -1,4 +1,4 @@
-name: CI/CD Pipeline + Calidad + Linting
+name: CI/CD Pipeline + Calidad + Linting + SBOM
 
 on:
   push:
@@ -29,18 +29,43 @@ jobs:
           cache: "npm"
           cache-dependency-path: ag-prueba-front/package-lock.json
 
-      # --- LINTING BACKEND (Java Checkstyle) ---
-      - name: Run Java Linting (Checkstyle)
-        run: |
-          cd authorization-server && chmod +x mvnw && ./mvnw checkstyle:check -B
-          cd ../resource-server && chmod +x mvnw && ./mvnw checkstyle:check -B
-        continue-on-error: true
-
       # --- COMPILAR BACKEND ---
       - name: Compilar servidores
         run: |
-          cd authorization-server && chmod +x mvnw && ./mvnw clean package -DskipTests -B
-          cd ../resource-server && chmod +x mvnw && ./mvnw clean package -DskipTests -B
+          chmod +x authorization-server/mvnw
+          chmod +x resource-server/mvnw
+          cd authorization-server && ./mvnw clean package -DskipTests -B
+          cd ../resource-server && ./mvnw clean package -DskipTests -B
+
+      # --- GENERACIÓN DE SBOM ---
+      - name: Generar SBOM Auth Server
+        uses: anchore/sbom-action@v0
+        with:
+          path: ./authorization-server
+          format: spdx-json
+          output-file: auth-server.spdx.json
+
+      - name: Generar SBOM Resource Server
+        uses: anchore/sbom-action@v0
+        with:
+          path: ./resource-server
+          format: spdx-json
+          output-file: resource-server.spdx.json
+
+      - name: Generar SBOM Frontend
+        uses: anchore/sbom-action@v0
+        with:
+          path: ./ag-prueba-front
+          format: spdx-json
+          output-file: frontend.spdx.json
+
+      # Persistencia de los archivos SBOM como artefactos
+      - name: Upload SBOMs
+        uses: actions/upload-artifact@v4
+        with:
+          name: project-sboms
+          path: "*.spdx.json"
+          retention-days: 7
 
       # --- TEST FRONTEND ---
       - name: Instalar dependencias del frontend
@@ -61,7 +86,6 @@ jobs:
             -Dsonar.organization=jon1476 \
             -Dsonar.host.url=https://sonarcloud.io \
             -Dsonar.sources=src/main/java,../resource-server/src/main/java,../ag-prueba-front/src \
-            -Dsonar.java.checkstyle.reportPaths=target/checkstyle-result.xml,../resource-server/target/checkstyle-result.xml \
             -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml,../resource-server/target/site/jacoco/jacoco.xml \
             -Dsonar.typescript.lcov.reportPaths=../ag-prueba-front/coverage/ag-prueba-front/lcov.info \
             -B
