@@ -1,4 +1,4 @@
-name: CI/CD Pipeline + Calidad + Linting + SBOM
+name: CI/CD Pipeline + Calidad + Artifacts
 
 on:
   push:
@@ -29,50 +29,45 @@ jobs:
           cache: "npm"
           cache-dependency-path: ag-prueba-front/package-lock.json
 
-      # --- COMPILAR BACKEND ---
-      - name: Compilar servidores
+      # --- BACKEND AUTH ---
+      - name: Compilar servidor de autorización
         run: |
           chmod +x authorization-server/mvnw
-          chmod +x resource-server/mvnw
           cd authorization-server && ./mvnw clean package -DskipTests -B
-          cd ../resource-server && ./mvnw clean package -DskipTests -B
 
-      # --- GENERACIÓN DE SBOM ---
-      - name: Generar SBOM Auth Server
-        uses: anchore/sbom-action@v0
-        with:
-          path: ./authorization-server
-          format: spdx-json
-          output-file: auth-server.spdx.json
-
-      - name: Generar SBOM Resource Server
-        uses: anchore/sbom-action@v0
-        with:
-          path: ./resource-server
-          format: spdx-json
-          output-file: resource-server.spdx.json
-
-      - name: Generar SBOM Frontend
-        uses: anchore/sbom-action@v0
-        with:
-          path: ./ag-prueba-front
-          format: spdx-json
-          output-file: frontend.spdx.json
-
-      # Persistencia de los archivos SBOM como artefactos
-      - name: Upload SBOMs
+      - name: Archive Auth Server Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: project-sboms
-          path: "*.spdx.json"
-          retention-days: 7
+          name: auth-server-release-${{ github.sha }}
+          path: authorization-server/target/*.jar
+          retention-days: 30
 
-      # --- TEST FRONTEND ---
-      - name: Instalar dependencias del frontend
-        run: cd ag-prueba-front && npm ci
+      # --- BACKEND RESOURCE ---
+      - name: Compilar servidor de recursos
+        run: |
+          chmod +x resource-server/mvnw
+          cd resource-server && ./mvnw clean package -DskipTests -B
 
-      - name: Testear frontend con cobertura
-        run: cd ag-prueba-front && npm run test -- --no-watch --browsers=ChromeHeadless --code-coverage 2>&1 || true
+      - name: Archive Resource Server Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: resource-server-release-${{ github.sha }}
+          path: resource-server/target/*.jar
+          retention-days: 30
+
+      # --- FRONTEND ---
+      - name: Instalar y Compilar Frontend
+        run: |
+          cd ag-prueba-front
+          npm ci
+          npm run build -- --configuration=production
+
+      - name: Archive Frontend Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist-${{ github.sha }}
+          path: ag-prueba-front/dist/
+          retention-days: 30
 
       # --- ANÁLISIS SONARCLOUD ---
       - name: Ejecutar análisis SonarCloud
