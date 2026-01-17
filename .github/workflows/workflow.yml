@@ -58,8 +58,8 @@ jobs:
             -Dsonar.projectKey=jon1476_oauth2-poc-GPI2 \
             -Dsonar.organization=jon1476 \
             -Dsonar.host.url=https://sonarcloud.io \
-            -Dsonar.sources=../authorization-server/src/main/java,../resource-server/src/main/java,../ag-prueba-front/src \
-            -Dsonar.coverage.jacoco.xmlReportPaths=./target/site/jacoco/jacoco.xml,../resource-server/target/site/jacoco/jacoco.xml \
+            -Dsonar.sources=src/main/java,../resource-server/src/main/java,../ag-prueba-front/src \
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml,../resource-server/target/site/jacoco/jacoco.xml \
             -Dsonar.typescript.lcov.reportPaths=../ag-prueba-front/coverage/ag-prueba-front/lcov.info \
             -B
         continue-on-error: true
