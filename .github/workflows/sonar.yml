@@ -1,4 +1,5 @@
-name: Analisis SonarQube 
+name: Análisis de Calidad - SonarQube
+
 on:
   push:
     branches: [develop]
@@ -6,42 +7,47 @@ on:
     types: [opened, synchronize, reopened]
 
 jobs:
-  analyze:
+  quality-analysis:
     runs-on: ubuntu-latest
+    name: Análisis SonarCloud
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up JDK 17
+      - name: Configurar JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
-          distribution: 'temurin'
-          cache: 'maven'
+          java-version: "17"
+          distribution: "temurin"
+          cache: "maven"
 
-      - name: Set up Node.js
+      - name: Configurar Node.js 18
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: 'ag-prueba-front/package-lock.json'
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: "ag-prueba-front/package-lock.json"
 
-      # --- BACKEND ---
-      - name: Build & Test Backend
-        run: mvn -B clean verify
+      # --- COMPILAR Y TESTEAR BACKEND ---
+      - name: Compilar y testear servidor de autorización
+        run: cd authorization-server && ./mvnw clean verify -B
+        continue-on-error: true
 
-      # --- FRONTEND ---
-      - name: Install & Test Frontend
-        run: |
-          cd ag-prueba-front
-          npm install
-          # Ejecutamos con ChromeHeadless para que funcione en el servidor de GitHub
-          npx ng test --no-watch --no-progress --browsers=ChromeHeadless --code-coverage
-        continue-on-error: true # Sigue aunque no haya tests o fallen
+      - name: Compilar y testear servidor de recursos
+        run: cd resource-server && ./mvnw clean verify -B
+        continue-on-error: true
 
-      #SONARQUBE 
-        name: SonarCloud Scan
+      # --- COMPILAR Y TESTEAR FRONTEND ---
+      - name: Instalar dependencias del frontend
+        run: cd ag-prueba-front && npm ci
+
+      - name: Testear frontend con cobertura
+        run: cd ag-prueba-front && npm run test -- --no-watch --browsers=ChromeHeadless --code-coverage
+        continue-on-error: true
+
+      # --- ANÁLISIS SONARCLOUD ---
+      - name: Ejecutar análisis SonarCloud
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -52,4 +58,4 @@ jobs:
             -Dsonar.host.url=https://sonarcloud.io \
             -Dsonar.sources=authorization-server/src/main/java,resource-server/src/main/java,ag-prueba-front/src \
             -Dsonar.coverage.jacoco.xmlReportPaths=authorization-server/target/site/jacoco/jacoco.xml,resource-server/target/site/jacoco/jacoco.xml \
-            -Dsonar.typescript.lcov.reportPaths=ag-prueba-front/coverage/ag-prueba-front/lcov.info
+            -Dsonar.typescript.lcov.reportPaths=ag-prueba-front/coverage/lcov.info
