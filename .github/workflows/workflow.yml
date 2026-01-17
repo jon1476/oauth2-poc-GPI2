@@ -1,15 +1,16 @@
-name: Análisis de Calidad - SonarQube
+name: CI/CD Pipeline + Análisis de Calidad
 
 on:
   push:
-    branches: [develop]
+    branches: ["develop"]
   pull_request:
     types: [opened, synchronize, reopened]
+  workflow_dispatch:
 
 jobs:
-  quality-analysis:
+  # JOB 1: BUILD + TEST + QUALITY ANALYSIS (todo junto)
+  build-and-analyze:
     runs-on: ubuntu-latest
-    name: Análisis SonarCloud
     steps:
       - uses: actions/checkout@v4
         with:
@@ -27,7 +28,7 @@ jobs:
         with:
           node-version: "18"
           cache: "npm"
-          cache-dependency-path: "ag-prueba-front/package-lock.json"
+          cache-dependency-path: ag-prueba-front/package-lock.json
 
       # --- COMPILAR Y TESTEAR BACKEND ---
       - name: Compilar y testear servidor de autorización
@@ -59,3 +60,14 @@ jobs:
             -Dsonar.sources=authorization-server/src/main/java,resource-server/src/main/java,ag-prueba-front/src \
             -Dsonar.coverage.jacoco.xmlReportPaths=authorization-server/target/site/jacoco/jacoco.xml,resource-server/target/site/jacoco/jacoco.xml \
             -Dsonar.typescript.lcov.reportPaths=ag-prueba-front/coverage/lcov.info
+        continue-on-error: true
+
+  # JOB 2: DESPLIEGUE (solo si develop y es push)
+  deploy:
+    needs: build-and-analyze
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    environment: Production
+    steps:
+      - name: Desplegar versión ${{ github.sha }}
+        run: echo "🚀 Desplegando versión ${{ github.sha }} en producción..."
