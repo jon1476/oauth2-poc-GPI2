@@ -1,79 +1,65 @@
-name: Pipeline de CD
+name: CI/CD Pipeline
 
 on:
   push:
     branches: ["develop"]
   workflow_dispatch:
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
-
 jobs:
-  build-and-push:
+  # JOB 1: SERVIDOR DE AUTORIZACIÓN
+  build-authorization-server:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
     steps:
-      - name: Iniciar temporizador
-        run: echo "START=$(date +%s)" >> $GITHUB_ENV
-
-      - name: Descargar repositorio
-        uses: actions/checkout@v4
-
-      # ============ SERVIDOR DE AUTORIZACIÓN ============
-      - name: Iniciar sesión en el registro de contenedores
-        uses: docker/login-action@v3
+      - uses: actions/checkout@v4
+      - name: Configurar JDK 17
+        uses: actions/setup-java@v4
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          java-version: "17"
+          distribution: "temurin"
+          cache: "maven"
+      - name: Otorgar permisos de ejecución a mvnw
+        run: chmod +x authorization-server/mvnw
+      - name: Compilar servidor de autorización
+        run: cd authorization-server && ./mvnw clean package -DskipTests
 
-      - name: Subir imagen del servidor de autorización
-        uses: docker/build-push-action@v5
+  # JOB 2: SERVIDOR DE RECURSOS
+  build-resource-server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configurar JDK 17
+        uses: actions/setup-java@v4
         with:
-          context: ./authorization-server
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/oauth2-authorization-server:${{ github.sha }}
-            ${{ env.REGISTRY }}/oauth2-authorization-server:latest
+          java-version: "17"
+          distribution: "temurin"
+          cache: "maven"
+      - name: Otorgar permisos de ejecución a mvnw
+        run: chmod +x resource-server/mvnw
+      - name: Compilar servidor de recursos
+        run: cd resource-server && ./mvnw clean package -DskipTests
 
-      # ============ SERVIDOR DE RECURSOS ============
-      - name: Subir imagen del servidor de recursos
-        uses: docker/build-push-action@v5
+  # JOB 3: FRONTEND
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configurar Node.js 18
+        uses: actions/setup-node@v4
         with:
-          context: ./resource-server
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/oauth2-resource-server:${{ github.sha }}
-            ${{ env.REGISTRY }}/oauth2-resource-server:latest
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: ag-prueba-front/package-lock.json
+      - name: Instalar dependencias
+        run: cd ag-prueba-front && npm ci
+      - name: Compilar Angular
+        run: cd ag-prueba-front && npm run build -- --configuration=production
 
-      # ============ FRONTEND ============
-      - name: Subir imagen del frontend
-        uses: docker/build-push-action@v5
-        with:
-          context: ./ag-prueba-front
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/oauth2-frontend:${{ github.sha }}
-            ${{ env.REGISTRY }}/oauth2-frontend:latest
-
-      - name: Finalizar temporizador
-        run: echo "END=$(date +%s)" >> $GITHUB_ENV
-
-      - name: Calcular duración
-        run: |
-          SECONDS=$((END-START))
-          echo "Duración del pipeline: ${SECONDS} segundos"
-          echo "DEPLOY_DURATION=${SECONDS}" >> $GITHUB_ENV
-
-      - name: Resumen del Pipeline
-        run: |
-          echo "### Pipeline de CD ✅" >> $GITHUB_STEP_SUMMARY
-          echo "**Imágenes Docker generadas:**" >> $GITHUB_STEP_SUMMARY
-          echo "- oauth2-authorization-server:${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "- oauth2-resource-server:${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "- oauth2-frontend:${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Tiempo total:** ${DEPLOY_DURATION} segundos" >> $GITHUB_STEP_SUMMARY
+  # JOB 4: DESPLIEGUE SIN MONTAR DOCKER
+  deploy:
+    needs: [build-authorization-server, build-resource-server, build-frontend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
+    environment: Production
+    steps:
+      - name: Simular despliegue
+        run: echo " Desplegando versión ${{ github.sha }} en producción..."
