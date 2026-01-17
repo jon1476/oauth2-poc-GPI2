@@ -32,11 +32,11 @@ jobs:
 
       # --- COMPILAR Y TESTEAR BACKEND ---
       - name: Compilar y testear servidor de autorización
-        run: cd authorization-server && ./mvnw clean verify -DskipTests
+        run: cd authorization-server && ./mvnw clean verify -B
         continue-on-error: true
 
       - name: Compilar y testear servidor de recursos
-        run: cd resource-server && ./mvnw clean verify -DskipTests
+        run: cd resource-server && ./mvnw clean verify -B
         continue-on-error: true
 
       # --- COMPILAR Y TESTEAR FRONTEND ---
@@ -57,6 +57,7 @@ jobs:
             -Dsonar.organization=jon1476 \
             -Dsonar.host.url=https://sonarcloud.io \
             -Dsonar.sources=authorization-server/src/main/java,resource-server/src/main/java,ag-prueba-front/src \
+            -Dsonar.coverage.jacoco.xmlReportPaths=authorization-server/target/site/jacoco/jacoco.xml,resource-server/target/site/jacoco/jacoco.xml \
             -Dsonar.typescript.lcov.reportPaths=ag-prueba-front/coverage/ag-prueba-front/lcov.info
         continue-on-error: true
 
