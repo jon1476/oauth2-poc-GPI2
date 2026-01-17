@@ -1,4 +1,4 @@
-name: CI/CD Pipeline + Análisis de Calidad
+name: CI/CD Pipeline + Calidad + Linting
 
 on:
   push:
@@ -8,7 +8,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  # JOB 1: BUILD + TEST + QUALITY ANALYSIS (todo junto)
   build-and-analyze:
     runs-on: ubuntu-latest
     steps:
@@ -30,18 +29,26 @@ jobs:
           cache: "npm"
           cache-dependency-path: ag-prueba-front/package-lock.json
 
-      # --- COMPILAR BACKEND (sin tests) ---
-      - name: Compilar servidor de autorización
-        run: cd authorization-server && chmod +x mvnw && ./mvnw clean package -DskipTests -B
+      # --- LINTING BACKEND (Java Checkstyle) ---
+      - name: Run Java Linting (Checkstyle)
+        run: |
+          cd authorization-server && ./mvnw checkstyle:check -B
+          cd ../resource-server && ./mvnw checkstyle:check -B
         continue-on-error: true
 
-      - name: Compilar servidor de recursos
-        run: cd resource-server && chmod +x mvnw && ./mvnw clean package -DskipTests -B
-        continue-on-error: true
+      # --- COMPILAR BACKEND ---
+      - name: Compilar servidores
+        run: |
+          cd authorization-server && ./mvnw clean package -DskipTests -B
+          cd ../resource-server && ./mvnw clean package -DskipTests -B
 
-      # --- COMPILAR Y TESTEAR FRONTEND ---
+      # --- LINTING & TEST FRONTEND (Angular ESLint) ---
       - name: Instalar dependencias del frontend
         run: cd ag-prueba-front && npm ci
+
+      - name: Run Frontend Linting (ESLint)
+        run: cd ag-prueba-front && npx ng lint
+        continue-on-error: true
 
       - name: Testear frontend con cobertura
         run: cd ag-prueba-front && npm run test -- --no-watch --browsers=ChromeHeadless --code-coverage 2>&1 || true
@@ -53,23 +60,12 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           cd authorization-server
-          chmod +x mvnw
           ./mvnw org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -Dsonar.projectKey=jon1476_oauth2-poc-GPI2 \
             -Dsonar.organization=jon1476 \
             -Dsonar.host.url=https://sonarcloud.io \
             -Dsonar.sources=src/main/java,../resource-server/src/main/java,../ag-prueba-front/src \
+            -Dsonar.java.checkstyle.reportPaths=target/checkstyle-result.xml,../resource-server/target/checkstyle-result.xml \
             -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml,../resource-server/target/site/jacoco/jacoco.xml \
             -Dsonar.typescript.lcov.reportPaths=../ag-prueba-front/coverage/ag-prueba-front/lcov.info \
             -B
-        continue-on-error: true
-
-  # JOB 2: DESPLIEGUE (solo si develop y es push)
-  deploy:
-    needs: build-and-analyze
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-    environment: Production
-    steps:
-      - name: Desplegar versión ${{ github.sha }}
-        run: echo "Desplegando versión ${{ github.sha }} en producción..."
