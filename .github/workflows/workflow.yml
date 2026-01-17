@@ -1,4 +1,4 @@
-name: CI/CD Pipeline + Calidad + Artifacts
+name: CI/CD Pipeline + Calidad + SBOM + Artifacts
 
 on:
   push:
@@ -30,29 +30,47 @@ jobs:
           cache-dependency-path: ag-prueba-front/package-lock.json
 
       # --- BACKEND AUTH ---
-      - name: Compilar servidor de autorización
+      - name: Compilar Auth Server
         run: |
           chmod +x authorization-server/mvnw
           cd authorization-server && ./mvnw clean package -DskipTests -B
 
-      - name: Archive Auth Server Artifact
+      - name: Generar SBOM Auth Server
+        uses: anchore/sbom-action@v0
+        with:
+          path: ./authorization-server
+          format: spdx-json
+          output-file: auth-server.spdx.json
+
+      - name: Archive Auth Artifacts (Jar + SBOM)
         uses: actions/upload-artifact@v4
         with:
           name: auth-server-release-${{ github.sha }}
-          path: authorization-server/target/*.jar
+          path: |
+            authorization-server/target/*.jar
+            auth-server.spdx.json
           retention-days: 30
 
       # --- BACKEND RESOURCE ---
-      - name: Compilar servidor de recursos
+      - name: Compilar Resource Server
         run: |
           chmod +x resource-server/mvnw
           cd resource-server && ./mvnw clean package -DskipTests -B
 
-      - name: Archive Resource Server Artifact
+      - name: Generar SBOM Resource Server
+        uses: anchore/sbom-action@v0
+        with:
+          path: ./resource-server
+          format: spdx-json
+          output-file: resource-server.spdx.json
+
+      - name: Archive Resource Artifacts (Jar + SBOM)
         uses: actions/upload-artifact@v4
         with:
           name: resource-server-release-${{ github.sha }}
-          path: resource-server/target/*.jar
+          path: |
+            resource-server/target/*.jar
+            resource-server.spdx.json
           retention-days: 30
 
       # --- FRONTEND ---
@@ -62,20 +80,33 @@ jobs:
           npm ci
           npm run build -- --configuration=production
 
-      - name: Archive Frontend Artifact
+      - name: Generar SBOM Frontend
+        uses: anchore/sbom-action@v0
+        with:
+          path: ./ag-prueba-front
+          format: spdx-json
+          output-file: frontend.spdx.json
+
+      - name: Archive Frontend Artifacts (Dist + SBOM)
         uses: actions/upload-artifact@v4
         with:
-          name: frontend-dist-${{ github.sha }}
-          path: ag-prueba-front/dist/
+          name: frontend-release-${{ github.sha }}
+          path: |
+            ag-prueba-front/dist/
+            frontend.spdx.json
           retention-days: 30
 
       # --- ANÁLISIS SONARCLOUD ---
-      - name: Ejecutar análisis SonarCloud
+      - name: Test Frontend & Sonar Analysis
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          cd authorization-server
+          # Ejecutamos tests de front para cobertura
+          cd ag-prueba-front && npm run test -- --no-watch --browsers=ChromeHeadless --code-coverage 2>&1 || true
+
+          # Lanzamos Sonar desde la raíz o carpeta principal
+          cd ../authorization-server
           ./mvnw org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -Dsonar.projectKey=jon1476_oauth2-poc-GPI2 \
             -Dsonar.organization=jon1476 \
