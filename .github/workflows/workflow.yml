@@ -41,33 +41,54 @@ jobs:
           distribution: "temurin"
           cache: "maven"
 
-      # Compilación y SBOM unificado para ahorrar tiempo
-      - name: Build & SBOM Backends
+      # --- BACKEND AUTH ---
+      - name: Build Auth Server
         run: |
-          chmod +x authorization-server/mvnw resource-server/mvnw
+          chmod +x authorization-server/mvnw
           cd authorization-server && ./mvnw clean package -DskipTests -B
-          cd ../resource-server && ./mvnw clean package -DskipTests -B
 
-      - name: Build & SBOM Frontend
+      - name: Archive Auth Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: auth-server-release-${{ github.sha }}
+          path: authorization-server/target/*.jar
+
+      # --- BACKEND RESOURCE ---
+      - name: Build Resource Server
+        run: |
+          chmod +x resource-server/mvnw
+          cd resource-server && ./mvnw clean package -DskipTests -B
+
+      - name: Archive Resource Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: resource-server-release-${{ github.sha }}
+          path: resource-server/target/*.jar
+
+      # --- FRONTEND ---
+      - name: Build Frontend
         run: |
           cd ag-prueba-front && npm ci && npm run build -- --configuration=production
 
-      # Generar SBOMs (OKR 4)
-      - name: Generate SBOMs
+      - name: Archive Frontend Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-release-${{ github.sha }}
+          path: ag-prueba-front/dist/
+
+      # --- SBOM GENERAL (OKR 4) ---
+      - name: Generate & Archive SBOM
         uses: anchore/sbom-action@v0
         with:
           path: ./
           format: spdx-json
           output-file: project-full.spdx.json
 
-      - name: Archive Artifacts
+      - name: Archive SBOM
         uses: actions/upload-artifact@v4
         with:
-          name: full-release-${{ github.sha }}
-          path: |
-            **/target/*.jar
-            ag-prueba-front/dist/
-            project-full.spdx.json
+          name: sbom-report
+          path: project-full.spdx.json
 
       # SonarCloud (OKR 3)
       - name: SonarCloud Analysis
@@ -83,16 +104,18 @@ jobs:
             -Dsonar.sources=src/main/java,../resource-server/src/main/java,../ag-prueba-front/src \
             -B
 
+  # 3. ESCANEO DINÁMICO (POST-DEPLOY)
   deploy-and-owaspZap:
     needs: build-and-quality
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Docker Run & ZAP Scan
+
+      - name: Docker Run
         run: |
           echo "MYSQL_ROOT_PASSWORD=${{ secrets.DB_PASSWORD }}" > .env
           docker compose up -d --build
-          sleep 40 # Tiempo para que los servicios arranquen
+          sleep 50 # Un poco más de tiempo para asegurar que Angular y Spring estén listos
 
       - name: OWASP ZAP Scan
         uses: zaproxy/action-baseline@v0.12.0
@@ -100,6 +123,7 @@ jobs:
           target: "http://localhost:4200"
           fail_action: false
           issue_title: "Security Scan Report (OKR 4)"
+          artifact_name: ""
 
       - name: Cleanup
         if: always()
