@@ -23,6 +23,22 @@ jobs:
           path: ./
           extra_args: --debug --only-verified
 
+  dependency-review:
+    name: Dependency Review (SBOM Control)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          # Compara con el destino
+          base-ref: ${{ github.event.pull_request.base.sha }}
+          head-ref: ${{ github.event.pull_request.head.sha }}
+
   build-and-analyze:
     runs-on: ubuntu-latest
     steps:
@@ -110,6 +126,15 @@ jobs:
             ag-prueba-front/dist/
             frontend.spdx.json
           retention-days: 30
+
+      # --- CONTROL Y AVISO DE MODIFICACIONES EN SBOM ---
+      - name: SBOM Change Notification
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        run: |
+          echo "### Aviso de Control de SBOM" >> $GITHUB_STEP_SUMMARY
+          echo "Se ha generado un nuevo manifiesto de componentes para esta versión." >> $GITHUB_STEP_SUMMARY
+          echo "Cualquier cambio en las dependencias ha sido registrado en los artefactos del sistema." >> $GITHUB_STEP_SUMMARY
+          echo "Estado del escaneo: **Completado con éxito**" >> $GITHUB_STEP_SUMMARY
 
       # --- ANÁLISIS SONARCLOUD ---
       - name: Test Frontend & Sonar Analysis
