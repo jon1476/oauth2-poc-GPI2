@@ -8,6 +8,21 @@ on:
   workflow_dispatch:
 
 jobs:
+  secret-scan:
+    name: Secret Scan (TruffleHog)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Escanea todo el historial, no solo el último commit
+
+      - name: TruffleHog OSS
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          extra_args: --debug --only-verified
+
   build-and-analyze:
     runs-on: ubuntu-latest
     steps:
