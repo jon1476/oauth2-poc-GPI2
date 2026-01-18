@@ -83,12 +83,7 @@ jobs:
           path: ./
           format: spdx-json
           output-file: project-inventory.spdx.json
-
-      - name: Archive SBOM Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom-inventory
-          path: project-inventory.spdx.json
+          artifact-name: "sbom-inventory"
 
       # --- ANÁLISIS SONARCLOUD ---
       - name: SonarCloud Analysis
