@@ -50,7 +50,7 @@ jobs:
       - name: Archive Auth Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: auth-server-release-${{ github.sha }}
+          name: auth-server-bin-${{ github.sha }}
           path: authorization-server/target/*.jar
 
       # --- BACKEND RESOURCE ---
@@ -62,7 +62,7 @@ jobs:
       - name: Archive Resource Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: resource-server-release-${{ github.sha }}
+          name: resource-server-bin-${{ github.sha }}
           path: resource-server/target/*.jar
 
       # --- FRONTEND ---
@@ -73,24 +73,24 @@ jobs:
       - name: Archive Frontend Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: frontend-release-${{ github.sha }}
+          name: frontend-dist-${{ github.sha }}
           path: ag-prueba-front/dist/
 
-      # --- SBOM GENERAL (OKR 4) ---
-      - name: Generate & Archive SBOM
+      # --- SBOM ÚNICO (OKR 4) ---
+      - name: Generate Global SBOM
         uses: anchore/sbom-action@v0
         with:
           path: ./
           format: spdx-json
-          output-file: project-full.spdx.json
+          output-file: project-inventory.spdx.json
 
-      - name: Archive SBOM
+      - name: Archive SBOM Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: sbom-report
-          path: project-full.spdx.json
+          name: sbom-inventory
+          path: project-inventory.spdx.json
 
-      # SonarCloud (OKR 3)
+      # --- ANÁLISIS SONARCLOUD ---
       - name: SonarCloud Analysis
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -115,7 +115,7 @@ jobs:
         run: |
           echo "MYSQL_ROOT_PASSWORD=${{ secrets.DB_PASSWORD }}" > .env
           docker compose up -d --build
-          sleep 50 # Un poco más de tiempo para asegurar que Angular y Spring estén listos
+          sleep 60
 
       - name: OWASP ZAP Scan
         uses: zaproxy/action-baseline@v0.12.0
@@ -123,6 +123,7 @@ jobs:
           target: "http://localhost:4200"
           fail_action: false
           issue_title: "Security Scan Report (OKR 4)"
+          token: ${{ secrets.GITHUB_TOKEN }}
           artifact_name: ""
 
       - name: Cleanup
